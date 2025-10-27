@@ -1,18 +1,50 @@
 stages:
   - build
   - test
+  - deploy
 
-build-job:
+variables:
+  NODE_VERSION: "20"
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - node -v
+  - npm -v
+
+build:
   stage: build
-  image: maven:3.9.6-eclipse-temurin-17
+  image: node:${NODE_VERSION}
   script:
-    - mvn clean package
+    - echo "Installing dependencies..."
+    - npm install
+    - npm run build
   artifacts:
     paths:
-      - target/*.jar
+      - dist
+  only:
+    - main
 
-test-job:
+test:
   stage: test
-  image: maven:3.9.6-eclipse-temurin-17
+  image: node:${NODE_VERSION}
   script:
-    - mvn test
+    - echo "Running tests..."
+    - npm test
+  dependencies:
+    - build
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: node:${NODE_VERSION}
+  script:
+    - echo "Deploying application..."
+    - npm run deploy
+  dependencies:
+    - build
+  only:
+    - main
