@@ -3,48 +3,36 @@ stages:
   - test
   - deploy
 
-variables:
-  NODE_VERSION: "20"
-
-cache:
-  paths:
-    - node_modules/
-
-before_script:
-  - node -v
-  - npm -v
-
-build:
+build-job:
   stage: build
-  image: node:${NODE_VERSION}
+  image: maven:3.9.6-eclipse-temurin-17
   script:
-    - echo "Installing dependencies..."
-    - npm install
-    - npm run build
+    - echo "Starting build stage..."
+    - mvn clean package -DskipTests
   artifacts:
     paths:
-      - dist
-  only:
-    - main
+      - target/*.jar
+    expire_in: 1 hour
 
-test:
+test-job:
   stage: test
-  image: node:${NODE_VERSION}
+  image: maven:3.9.6-eclipse-temurin-17
   script:
     - echo "Running tests..."
-    - npm test
+    - mvn test
   dependencies:
-    - build
-  only:
-    - main
+    - build-job
 
-deploy:
+deploy-job:
   stage: deploy
-  image: node:${NODE_VERSION}
+  image: alpine:latest
   script:
     - echo "Deploying application..."
-    - npm run deploy
-  dependencies:
-    - build
+    # Example deployment command:
+    # - scp target/*.jar user@your-server:/path/to/deploy/
+    # OR for Heroku:
+    # - curl https://cli-assets.heroku.com/install.sh | sh
+    # - heroku deploy:jar target/*.jar --app your-heroku-app
+    - echo "Deployment complete!"
   only:
     - main
