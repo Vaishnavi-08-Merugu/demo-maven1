@@ -1,60 +1,46 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    DOCKER_REGISTRY = "docker.io"
-    DOCKER_REPO     = "vaishnavi873/flask-app"  // your Docker Hub repo
-    IMAGE_TAG       = "${env.BUILD_NUMBER}"
-    FULL_TAG        = "${DOCKER_REPO}:${IMAGE_TAG}"
-    LATEST_TAG      = "${DOCKER_REPO}:latest"
-  }
-
-  stages {
-
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
-    }
-
-    stage('Build Docker image') {
-      steps {
-        script {
-          sh "docker build -t ${FULL_TAG} ."
-          sh "docker tag ${FULL_TAG} ${LATEST_TAG}"
+    stages {
+        stage('Checkout Code') {
+            steps {
+                // Pull code from GitHub automatically
+                checkout scm
+            }
         }
-      }
-    }
 
-    stage('Login & Push to Docker Hub') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-          script {
-            sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
-            sh "docker push ${FULL_TAG}"
-            sh "docker push ${LATEST_TAG}"
-            sh 'docker logout'
-          }
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing npm dependencies...'
+                bat 'npm install'      // for Windows Jenkins agent
+                // use sh 'npm install' if using Linux
+            }
         }
-      }
-    }
 
-    stage('Cleanup local images') {
-      steps {
-        script {
-          sh "docker rmi ${FULL_TAG} || true"
-          sh "docker rmi ${LATEST_TAG} || true"
+        stage('Build and Test') {
+            steps {
+                echo 'Building and testing the project...'
+                bat 'npm run build'
+                bat 'npm run test'
+            }
         }
-      }
-    }
-  }
 
-  post {
-    success {
-      echo "✅ Docker image pushed: ${FULL_TAG} and ${LATEST_TAG}"
+        stage('Archive Artifact') {
+            steps {
+                echo 'Archiving build output...'
+                // Create a zip file of the project
+                bat 'tar -a -c -f build-artifact.zip index.js package.json'
+                archiveArtifacts artifacts: 'build-artifact.zip', fingerprint: true
+            }
+        }
     }
-    failure {
-      echo "❌ Pipeline failed. Check logs."
+
+    post {
+        success {
+            echo '✅ Build completed successfully!'
+        }
+        failure {
+            echo '❌ Build failed! Please check logs.'
+        }
     }
-  }
 }
